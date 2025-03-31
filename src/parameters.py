@@ -1,28 +1,26 @@
 import math
 
-# Randomness to signatures
 RANDOMIZE = True
 
-# Security parameter (in bytes)
-n = 32
+def get_parameters(instance="128s"):
+    params = {
+        "128s": {"n": 16, "w": 16, "h": 63, "d": 7, "k": 10, "a": 14},
+        "128f": {"n": 16, "w": 16, "h": 66, "d": 22, "k": 33, "a": 9},
+        "192s": {"n": 24, "w": 16, "h": 63, "d": 7, "k": 14, "a": 15},
+        "192f": {"n": 24, "w": 16, "h": 66, "d": 22, "k": 31, "a": 11},
+        "256s": {"n": 32, "w": 16, "h": 64, "d": 8, "k": 17, "a": 15},
+        "256f": {"n": 32, "w": 16, "h": 68, "d": 17, "k": 35, "a": 12}
+    }
+    return params.get(instance, params["128s"])
 
-# Winternitz parameter
-w = 16
+params = get_parameters()
+n = params["n"]
+w = params["w"]
+h = params["h"]
+d = params["d"]
+k = params["k"]
+a = params["a"]
 
-# Hypertree height
-h = 12
-
-# Hypertree layers
-d = 3
-
-# FORS trees numbers
-k = 8
-
-# FORS trees height
-a = 4
-
-
-# SUB VALUES (AUTOMATICS)
 
 # Message Lengt for WOTS
 len_1 = math.ceil(8 * n / math.log(w, 2))
