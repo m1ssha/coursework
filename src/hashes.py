@@ -13,7 +13,7 @@ def hash(seed, adrs: ADRS, value, n=None):
     if n is None:
         params = get_parameters()
         n = params["n"]
-    m = hashlib.sha256()
+    m = hashlib.blake2b()
 
     m.update(seed)
     m.update(adrs.to_bin())
@@ -36,7 +36,7 @@ def hash_msg(r, public_seed, public_root, value, digest_size=None, params=None):
     if digest_size is None:
         digest_size = params["n"]
     
-    m = hashlib.sha256()
+    m = hashlib.blake2b()
 
     m.update(r)
     m.update(public_seed)
@@ -48,7 +48,7 @@ def hash_msg(r, public_seed, public_root, value, digest_size=None, params=None):
     i = 0
     while len(hashed) < digest_size:
         i += 1
-        m = hashlib.sha256()
+        m = hashlib.blake2b()
 
         m.update(r)
         m.update(public_seed)

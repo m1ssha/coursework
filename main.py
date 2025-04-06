@@ -7,11 +7,11 @@ from src.parameters import get_parameters
 def compute_file_hash(file_path):
     """Вычисление SHA-256 хэша файла."""
     import hashlib
-    sha256 = hashlib.sha256()
+    blake2b = hashlib.blake2b()
     with open(file_path, 'rb') as f:
         while chunk := f.read(8192):
-            sha256.update(chunk)
-    return sha256.digest()
+            blake2b.update(chunk)
+    return blake2b.digest()
 
 def main():
     parser = argparse.ArgumentParser(description="Консольный инструмент для работы с SPHINCS+")

@@ -11,7 +11,7 @@ class GUI:
         self.root = root
         self.root.title("Инструмент SPHINCS+")
         self.root.geometry("800x600")
-        self.root.resizable(False, False)  # Фиксированный размер окна
+        self.root.resizable(False, False)
 
         self.sk = None
         self.pk = None
@@ -23,17 +23,14 @@ class GUI:
         self.create_widgets()
 
     def create_widgets(self):
-        # Стиль для кнопок и виджетов
         style = ttk.Style()
         style.configure("TButton", font=("Helvetica", 10), padding=5)
         style.configure("TLabel", font=("Helvetica", 10))
         style.configure("TCombobox", font=("Helvetica", 10))
 
-        # Основной контейнер
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill="both", expand=True)
 
-        # Рамка для параметров
         param_frame = ttk.LabelFrame(main_frame, text="Параметры", padding="5")
         param_frame.pack(fill="x", pady=5)
 
@@ -43,7 +40,6 @@ class GUI:
         self.instance_var.trace("w", self.update_instance)
         ttk.Combobox(param_frame, textvariable=self.instance_var, values=instances, state="readonly", width=10).grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
-        # Рамка для ключей
         key_frame = ttk.LabelFrame(main_frame, text="Управление ключами", padding="5")
         key_frame.pack(fill="x", pady=5)
 
@@ -52,7 +48,6 @@ class GUI:
         ttk.Button(key_frame, text="Сохранить ключи", command=self.save_keys).grid(row=0, column=2, padx=5, pady=5)
         ttk.Button(key_frame, text="Загрузить ключи", command=self.load_keys).grid(row=0, column=3, padx=5, pady=5)
 
-        # Рамка для файла и подписи
         file_frame = ttk.LabelFrame(main_frame, text="Работа с файлами и подписью", padding="5")
         file_frame.pack(fill="x", pady=5)
 
@@ -61,12 +56,11 @@ class GUI:
         self.file_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
         ttk.Button(file_frame, text="Выбрать файл", command=self.select_file).grid(row=0, column=2, padx=5, pady=5)
 
-        ttk.Button(file_frame, text="Подписать файл (хэш)", command=self.sign_file_hash).grid(row=1, column=1, padx=5, pady=5)
+        ttk.Button(file_frame, text="Подписать файл (хэш)", command=self.sign_file_hash_with_progress).grid(row=1, column=1, padx=5, pady=5)
         ttk.Button(file_frame, text="Проверить файл", command=self.verify_file).grid(row=2, column=1, padx=5, pady=5)
         ttk.Button(file_frame, text="Сохранить подпись", command=self.save_signature).grid(row=1, column=2, padx=5, pady=5)
         ttk.Button(file_frame, text="Загрузить подпись", command=self.load_signature).grid(row=2, column=2, padx=5, pady=5)
 
-        # Рамка для результата
         result_frame = ttk.LabelFrame(main_frame, text="Результат", padding="5")
         result_frame.pack(fill="both", expand=True, pady=5)
 
@@ -77,43 +71,55 @@ class GUI:
         self.result_text.config(yscrollcommand=scrollbar.set)
 
     def update_instance(self, *args):
-        """Обновление выбранного набора параметров."""
         self.instance = self.instance_var.get()
         self.params = get_parameters(self.instance)
         self.update_result(f"Выбран набор параметров: {self.instance}\nПараметры: {self.params}")
 
     def select_file(self):
-        """Выбор файла любого типа."""
         self.file_path = filedialog.askopenfilename(title="Выберите файл для подписи или проверки")
         if self.file_path:
             self.file_label.config(text=os.path.basename(self.file_path))
             self.update_result(f"Выбран файл: {self.file_path}")
 
     def generate_keys(self):
-        """Генерация ключей с учётом выбранного instance."""
         self.sk, self.pk = spx_keygen(params=self.params)
         self.update_result(f"Ключи успешно сгенерированы!\n"
                           f"Набор параметров: {self.instance}\n"
                           f"Секретный ключ: {[x.hex()[:16] + '...' for x in self.sk]}\n"
                           f"Открытый ключ: {[x.hex()[:16] + '...' for x in self.pk]}")
 
-    def sign_file_hash(self):
-        """Подпись хэша файла."""
+    def sign_file_hash_with_progress(self):
+        """Подпись файла с прогресс-баром в отдельном окне."""
         if not self.sk:
             messagebox.showerror("Ошибка", "Сначала сгенерируйте или загрузите секретный ключ!")
             return
         if not self.file_path:
             messagebox.showerror("Ошибка", "Сначала выберите файл!")
             return
-        file_hash = self.compute_file_hash(self.file_path)
-        self.signature = spx_sign(file_hash, self.sk, params=self.params)
-        self.update_result(f"Хэш файла подписан!\n"
-                          f"Хэш: {file_hash.hex()[:16]}...\n"
-                          f"Длина подписи: {sum(len(x) if isinstance(x, bytes) else len(x) for x in self.signature)} байт "
-                          f"({len(self.signature)} компонентов)")
+
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("Подпись файла")
+        progress_window.geometry("300x100")
+        progress_window.transient(self.root)
+        progress_window.grab_set()
+
+        ttk.Label(progress_window, text="Выполняется подпись...").pack(pady=10)
+        progress_bar = ttk.Progressbar(progress_window, mode="indeterminate", length=200)
+        progress_bar.pack(pady=10)
+        progress_bar.start(10)
+
+        def perform_signing():
+            file_hash = self.compute_file_hash(self.file_path)
+            self.signature = spx_sign(file_hash, self.sk, params=self.params)
+            self.update_result(f"Хэш файла подписан!\n"
+                              f"Хэш: {file_hash.hex()[:16]}...\n"
+                              f"Длина подписи: {sum(len(x) if isinstance(x, bytes) else len(x) for x in self.signature)} байт "
+                              f"({len(self.signature)} компонентов)")
+            progress_window.destroy()
+
+        self.root.after(100, perform_signing)
 
     def verify_file(self):
-        """Проверка подписи файла (требуется только открытый ключ)."""
         if not self.pk:
             messagebox.showerror("Ошибка", "Сначала загрузите или сгенерируйте открытый ключ!")
             return
@@ -135,15 +141,13 @@ class GUI:
                               f"Набор параметров: {self.instance}")
 
     def compute_file_hash(self, file_path):
-        """Вычисление SHA-256 хэша файла."""
-        sha256 = hashlib.sha256()
+        blake2b = hashlib.blake2b()
         with open(file_path, 'rb') as f:
             while chunk := f.read(8192):
-                sha256.update(chunk)
-        return sha256.digest()
+                blake2b.update(chunk)
+        return blake2b.digest()
 
     def save_keys(self):
-        """Сохранение ключей."""
         if not self.sk or not self.pk:
             messagebox.showerror("Ошибка", "Сначала сгенерируйте ключи!")
             return
@@ -162,7 +166,6 @@ class GUI:
             self.update_result(f"Ключи сохранены:\nСекретный ключ: {sk_file}\nОткрытый ключ: {pk_file}")
 
     def load_keys(self):
-        """Загрузка ключей (секретный необязателен)."""
         choice = messagebox.askyesno("Выбор ключа", "Хотите загрузить секретный ключ? (Нет — загрузить только открытый)")
         if choice:
             sk_file = filedialog.askopenfilename(title="Загрузить секретный ключ", filetypes=[("Файлы секретного ключа", "*.sk")])
@@ -186,7 +189,6 @@ class GUI:
                               "\nЗагрузка открытого ключа отменена.")
 
     def save_signature(self):
-        """Сохранение подписи в отдельный файл с информацией об instance."""
         if not self.signature or not self.file_path:
             messagebox.showerror("Ошибка", "Сначала подпишите файл!")
             return
@@ -207,7 +209,6 @@ class GUI:
                               f"Сохранённый набор параметров: {self.instance}")
 
     def load_signature(self):
-        """Загрузка подписи с автоматическим выбором instance."""
         sig_file = filedialog.askopenfilename(title="Загрузить подпись", filetypes=[("Файлы подписи", "*.sig")])
         if sig_file:
             with open(sig_file, 'rb') as f:
@@ -230,7 +231,6 @@ class GUI:
                                   f"Предупреждение: Информация о наборе параметров отсутствует. Используется текущий: {self.instance}")
 
     def update_result(self, text):
-        """Обновление поля результата."""
         self.result_text.config(state='normal')
         self.result_text.delete("1.0", tk.END)
         self.result_text.insert(tk.END, text)
