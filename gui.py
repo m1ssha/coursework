@@ -9,7 +9,7 @@ from src.parameters import get_parameters
 class GUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Инструмент SPHINCS+")
+        self.root.title("SPHINCS+ GUI")
         self.root.geometry("800x600")
         self.root.resizable(False, False)
 
@@ -30,6 +30,10 @@ class GUI:
 
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill="both", expand=True)
+
+        logo = tk.PhotoImage(file="sphincsplus.png")
+        ttk.Label(main_frame, image=logo).pack(pady=10)
+        self.root.logo = logo
 
         param_frame = ttk.LabelFrame(main_frame, text="Параметры", padding="5")
         param_frame.pack(fill="x", pady=5)
