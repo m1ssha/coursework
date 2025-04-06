@@ -3,3 +3,6 @@ test.py
 __pycache__/
 *.pyc
 sphincs_test_results.xlsx
+build/
+dist/
+gui.spec

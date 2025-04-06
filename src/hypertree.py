@@ -47,8 +47,8 @@ def ht_sign(m, secret_seed, public_seed, idx_tree, idx_leaf, params=None):
         if j < d - 1:
             root = xmss_pk_from_sig(idx_leaf, sig_tmp, root, public_seed, adrs.copy(), params=params)
 
-    expected_length = d * (h_prime + len_0) * n  # Исправлено: длина в байтах
-    total_length = sum(len(x) for x in sig_ht)   # Подсчет байтов
+    expected_length = d * (h_prime + len_0) * n
+    total_length = sum(len(x) for x in sig_ht) 
     print(f"ht_sign: sig_ht length = {total_length}, expected = {expected_length}")
     if total_length != expected_length:
         raise ValueError(f"ht_sign: Invalid sig_ht length: {total_length} != {expected_length}")
@@ -68,9 +68,9 @@ def ht_verify(m, sig_ht, public_seed, idx_tree, idx_leaf, public_key_ht, params=
 
     adrs = ADRS()
 
-    sigs_xmss = sigs_xmss_from_sig_ht(sig_ht, params=params)  # Предполагается внешняя функция
-    expected_length = d * (h_prime + len_0) * n  # Исправлено: длина в байтах
-    total_length = sum(len(x) for x in sig_ht)   # Подсчет байтов
+    sigs_xmss = sigs_xmss_from_sig_ht(sig_ht, params=params)  
+    expected_length = d * (h_prime + len_0) * n
+    total_length = sum(len(x) for x in sig_ht)
     print(f"ht_verify: sig_ht length = {total_length}, expected = {expected_length}")
     print(f"ht_verify: sigs_xmss length = {len(sigs_xmss)}, expected = {d}")
     if len(sigs_xmss) != d:

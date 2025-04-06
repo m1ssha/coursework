@@ -31,10 +31,6 @@ class GUI:
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill="both", expand=True)
 
-        logo = tk.PhotoImage(file="sphincsplus.png")
-        ttk.Label(main_frame, image=logo).pack(pady=10)
-        self.root.logo = logo
-
         param_frame = ttk.LabelFrame(main_frame, text="Параметры", padding="5")
         param_frame.pack(fill="x", pady=5)
 
