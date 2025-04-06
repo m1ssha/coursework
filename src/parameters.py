@@ -12,23 +12,3 @@ def get_parameters(instance="128s"):
         "256f": {"n": 32, "w": 16, "h": 68, "d": 17, "k": 35, "a": 12}
     }
     return params.get(instance, params["128s"])
-
-params = get_parameters()
-n = params["n"]
-w = params["w"]
-h = params["h"]
-d = params["d"]
-k = params["k"]
-a = params["a"]
-
-
-# Message Lengt for WOTS
-len_1 = math.ceil(8 * n / math.log(w, 2))
-len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
-len_0 = len_1 + len_2
-
-# XMSS Sub-Trees height
-h_prime = h // d
-
-# FORS trees leaves number
-t = 2**a

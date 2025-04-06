@@ -4,8 +4,8 @@ Main SPHINCS+ functions
 
 import math
 import hashlib
-import random  # Only for Pseudo-randoms
-import os  # Secure Randoms
+import random
+import os
 
 from src.utils import *
 from src.parameters import *
@@ -16,22 +16,28 @@ from src.xmss import *
 from src.hypertree import *
 from src.FORS import *
 
-
-# Input: (none)
-# Output: SPHINCS+ key pair (SK,PK)
-def spx_keygen():
+def spx_keygen(params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+    
     secret_seed = os.urandom(n)
     secret_prf = os.urandom(n)
     public_seed = os.urandom(n)
 
-    public_root = ht_pk_gen(secret_seed, public_seed)
+    public_root = ht_pk_gen(secret_seed, public_seed, params=params)
 
     return [secret_seed, secret_prf, public_seed, public_root], [public_seed, public_root]
 
-
-# Input: Message M, private key SK = (SK.seed, SK.prf, PK.seed, PK.root)
-# Output: SPHINCS+ signature SIG
-def spx_sign(m, secret_key):
+def spx_sign(m, secret_key, params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+    h = params["h"]
+    d = params["d"]
+    k = params["k"]
+    a = params["a"]
+    
     adrs = ADRS()
 
     secret_seed = secret_key[0]
@@ -42,17 +48,17 @@ def spx_sign(m, secret_key):
     opt = bytes(n)
     if RANDOMIZE:
         opt = os.urandom(n)
-    r = prf_msg(secret_prf, opt, m)
+    r = prf_msg(secret_prf, opt, m, params=params)
     sig = [r]
 
     size_md = math.floor((k * a + 7) / 8)
     size_idx_tree = math.floor((h - h // d + 7) / 8)
     size_idx_leaf = math.floor((h // d + 7) / 8)
 
-    digest = hash_msg(r, public_seed, public_root, m, size_md + size_idx_tree + size_idx_leaf)
+    digest = hash_msg(r, public_seed, public_root, m, size_md + size_idx_tree + size_idx_leaf, params=params)
     tmp_md = digest[:size_md]
     tmp_idx_tree = digest[size_md:(size_md + size_idx_tree)]
-    tmp_idx_leaf = digest[(size_md + size_idx_tree):len(digest)]
+    tmp_idx_leaf = digest[(size_md + size_idx_tree):]
 
     md_int = int.from_bytes(tmp_md, 'big') >> (len(tmp_md) * 8 - k * a)
     md = md_int.to_bytes(math.ceil(k * a / 8), 'big')
@@ -65,21 +71,26 @@ def spx_sign(m, secret_key):
     adrs.set_type(ADRS.FORS_TREE)
     adrs.set_key_pair_address(idx_leaf)
 
-    sig_fors = fors_sign(md, secret_seed, public_seed, adrs.copy())
+    sig_fors = fors_sign(md, secret_seed, public_seed, adrs.copy(), params=params)
     sig += [sig_fors]
 
-    pk_fors = fors_pk_from_sig(sig_fors, md, public_seed, adrs.copy())
+    pk_fors = fors_pk_from_sig(sig_fors, md, public_seed, adrs.copy(), params=params)
 
     adrs.set_type(ADRS.TREE)
-    sig_ht = ht_sign(pk_fors, secret_seed, public_seed, idx_tree, idx_leaf)
+    sig_ht = ht_sign(pk_fors, secret_seed, public_seed, idx_tree, idx_leaf, params=params)
     sig += [sig_ht]
 
+    print(f"spx_sign: sig components = {[len(x) if isinstance(x, bytes) else len(x) for x in sig]}")
     return sig
 
+def spx_verify(m, sig, public_key, params=None):
+    if params is None:
+        params = get_parameters()
+    h = params["h"]
+    d = params["d"]
+    k = params["k"]
+    a = params["a"]
 
-# Input: Message M, signature SIG, public key PK
-# Output: Boolean
-def spx_verify(m, sig, public_key):
     adrs = ADRS()
     r = sig[0]
     sig_fors = sig[1]
@@ -92,10 +103,10 @@ def spx_verify(m, sig, public_key):
     size_idx_tree = math.floor((h - h // d + 7) / 8)
     size_idx_leaf = math.floor((h // d + 7) / 8)
 
-    digest = hash_msg(r, public_seed, public_root, m, size_md + size_idx_tree + size_idx_leaf)
+    digest = hash_msg(r, public_seed, public_root, m, size_md + size_idx_tree + size_idx_leaf, params=params)
     tmp_md = digest[:size_md]
     tmp_idx_tree = digest[size_md:(size_md + size_idx_tree)]
-    tmp_idx_leaf = digest[(size_md + size_idx_tree):len(digest)]
+    tmp_idx_leaf = digest[(size_md + size_idx_tree):]
 
     md_int = int.from_bytes(tmp_md, 'big') >> (len(tmp_md) * 8 - k * a)
     md = md_int.to_bytes(math.ceil(k * a / 8), 'big')
@@ -108,7 +119,7 @@ def spx_verify(m, sig, public_key):
     adrs.set_type(ADRS.FORS_TREE)
     adrs.set_key_pair_address(idx_leaf)
 
-    pk_fors = fors_pk_from_sig(sig_fors, md, public_seed, adrs)
+    pk_fors = fors_pk_from_sig(sig_fors, md, public_seed, adrs, params=params)
 
     adrs.set_type(ADRS.TREE)
-    return ht_verify(pk_fors, sig_ht, public_seed, idx_tree, idx_leaf, public_root)
+    return ht_verify(pk_fors, sig_ht, public_seed, idx_tree, idx_leaf, public_root, params=params)

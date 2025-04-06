@@ -9,25 +9,33 @@ import math
 import hashlib
 import random
 
-
-def hash(seed, adrs: ADRS, value, digest_size=n):
+def hash(seed, adrs: ADRS, value, n=None):
+    if n is None:
+        params = get_parameters()
+        n = params["n"]
     m = hashlib.sha256()
 
     m.update(seed)
     m.update(adrs.to_bin())
     m.update(value)
 
-    hashed = m.digest()[:digest_size]
-
+    hashed = m.digest()[:n]
     return hashed
 
-
-def prf(secret_seed, adrs):
+def prf(secret_seed, adrs, params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+    
     random.seed(int.from_bytes(secret_seed + adrs.to_bin(), "big"))
     return random.randint(0, 256 ** n).to_bytes(n, byteorder='big')
 
-
-def hash_msg(r, public_seed, public_root, value, digest_size=n):
+def hash_msg(r, public_seed, public_root, value, digest_size=None, params=None):
+    if params is None:
+        params = get_parameters()
+    if digest_size is None:
+        digest_size = params["n"]
+    
     m = hashlib.sha256()
 
     m.update(r)
@@ -52,14 +60,14 @@ def hash_msg(r, public_seed, public_root, value, digest_size=n):
 
     return hashed
 
-
-def prf_msg(secret_seed, opt, m):
-    random.seed(int.from_bytes(secret_seed + opt + hash_msg(b'0', b'0', b'0', m, n*2), "big"))
+def prf_msg(secret_seed, opt, m, params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+    
+    random.seed(int.from_bytes(secret_seed + opt + hash_msg(b'0', b'0', b'0', m, n*2, params=params), "big"))
     return random.randint(0, 256 ** n).to_bytes(n, byteorder='big')
 
-
-# Input: len_X-byte string X, int w, output length out_len
-# Output: out_len int array basew
 def base_w(x, w, out_len):
     vin = 0
     vout = 0
@@ -78,28 +86,67 @@ def base_w(x, w, out_len):
 
     return basew
 
-
-def sig_wots_from_sig_xmss(sig):
+def sig_wots_from_sig_xmss(sig, params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+    w = params["w"]
+    len_1 = math.ceil(8 * n / math.log(w, 2))
+    len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
+    len_0 = len_1 + len_2
+    
     return sig[0:len_0]
 
-
-def auth_from_sig_xmss(sig):
+def auth_from_sig_xmss(sig, params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+    w = params["w"]
+    len_1 = math.ceil(8 * n / math.log(w, 2))
+    len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
+    len_0 = len_1 + len_2
+    
     return sig[len_0:]
 
-
-def sigs_xmss_from_sig_ht(sig):
+def sigs_xmss_from_sig_ht(sig, params=None):
+    if params is None:
+        params = get_parameters()
+    d = params["d"]
+    h = params["h"]
+    h_prime = h // d
+    n = params["n"]
+    w = params["w"]
+    len_1 = math.ceil(8 * n / math.log(w, 2))
+    len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
+    len_0 = len_1 + len_2
+    
+    expected_length = d * (h_prime + len_0)
+    if len(sig) != expected_length:
+        print(f"sigs_xmss_from_sig_ht: sig length = {len(sig)}, expected = {expected_length}")
+    
     sigs = []
     for i in range(0, d):
-        sigs.append(sig[i*(h_prime + len_0):(i+1)*(h_prime + len_0)])
-
+        start = i * (h_prime + len_0)
+        end = (i + 1) * (h_prime + len_0)
+        sigs.append(sig[start:end])
     return sigs
 
+def auths_from_sig_fors(sig, params=None):
+    if params is None:
+        params = get_parameters()
+    k = params["k"]
+    a = params["a"]
 
-def auths_from_sig_fors(sig):
+    expected_length = k * (a + 1)
+    if len(sig) != expected_length:
+        print(f"auths_from_sig_fors: sig length = {len(sig)}, expected = {expected_length}")
+        return []
+
     sigs = []
+    step = a + 1
     for i in range(0, k):
-        sigs.append([])
-        sigs[i].append(sig[(a+1) * i])
-        sigs[i].append(sig[((a+1) * i + 1):((a+1) * (i+1))])
-
+        start = i * step
+        sk = sig[start]
+        auth = sig[start + 1:start + step]
+        sigs.append([sk, auth])
     return sigs

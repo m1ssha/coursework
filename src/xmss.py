@@ -4,9 +4,11 @@ from src.ADRS import *
 from src.WOTSplus import *
 import math
 
-# Input: Secret seed SK.seed, start index s, target node height z, public seed PK.seed, address ADRS
-# Output: n-byte root node - top node on Stack
-def treehash(secret_seed, s, z, public_seed, adrs: ADRS):
+def treehash(secret_seed, s, z, public_seed, adrs: ADRS, params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+
     if s % (1 << z) != 0:
         return -1
 
@@ -15,7 +17,7 @@ def treehash(secret_seed, s, z, public_seed, adrs: ADRS):
     for i in range(0, 2**z):
         adrs.set_type(ADRS.WOTS_HASH)
         adrs.set_key_pair_address(s + i)
-        node = wots_pk_gen(secret_seed, public_seed, adrs.copy())
+        node = wots_pk_gen(secret_seed, public_seed, adrs.copy(), params=params)
 
         adrs.set_type(ADRS.TREE)
         adrs.set_tree_height(1)
@@ -34,44 +36,75 @@ def treehash(secret_seed, s, z, public_seed, adrs: ADRS):
 
     return stack.pop()['node']
 
+def xmss_pk_gen(secret_seed, public_seed, adrs: ADRS, params=None):
+    if params is None:
+        params = get_parameters()
+    h = params["h"]
+    d = params["d"]
+    h_prime = h // d
 
-# Input: Secret seed SK.seed, public seed PK.seed, address ADRS
-# Output: XMSS public key PK
-def xmss_pk_gen(secret_seed, public_key, adrs: ADRS):
-    pk = treehash(secret_seed, 0, h_prime, public_key, adrs.copy())
+    pk = treehash(secret_seed, 0, h_prime, public_seed, adrs.copy(), params=params)
     return pk
 
+def xmss_sign(m, secret_seed, idx, public_seed, adrs, params=None):
+    if params is None:
+        params = get_parameters()
+    h = params["h"]
+    d = params["d"]
+    h_prime = h // d
+    n = params["n"]
+    w = params["w"]
+    len_1 = math.ceil(8 * n / math.log(w, 2))
+    len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
+    len_0 = len_1 + len_2
 
-# Input: n-byte message M, secret seed SK.seed, index idx, public seed PK.seed, address ADRS
-# Output: XMSS signature SIG_XMSS = (sig || AUTH)
-def xmss_sign(m, secret_seed, idx, public_seed, adrs):
     auth = []
     for j in range(0, h_prime):
         ki = math.floor(idx // 2**j)
-        if ki % 2 == 1: # XORING idx/ 2**j with 1
+        if ki % 2 == 1:
             ki -= 1
         else:
             ki += 1
-
-        auth += [treehash(secret_seed, ki * 2**j, j, public_seed, adrs.copy())]
+        auth += [treehash(secret_seed, ki * 2**j, j, public_seed, adrs.copy(), params=params)]
 
     adrs.set_type(ADRS.WOTS_HASH)
     adrs.set_key_pair_address(idx)
 
-    sig = wots_sign(m, secret_seed, public_seed, adrs.copy())
+    sig = wots_sign(m, secret_seed, public_seed, adrs.copy(), params=params)
     sig_xmss = sig + auth
+    
+    expected_length = len_0 + h_prime
+    if len(sig_xmss) != expected_length:
+        print(f"xmss_sign: sig_xmss length = {len(sig_xmss)}, expected = {expected_length}")
     return sig_xmss
 
+def xmss_pk_from_sig(idx, sig_xmss, m, public_seed, adrs, params=None):
+    if params is None:
+        params = get_parameters()
+    n = params["n"]
+    h = params["h"]
+    d = params["d"]
+    h_prime = h // d
+    w = params["w"]
+    len_1 = math.ceil(8 * n / math.log(w, 2))
+    len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
+    len_0 = len_1 + len_2
 
-# Input: index idx, XMSS signature SIG_XMSS = (sig || AUTH), n-byte message M, public seed PK.seed, address ADRS
-# Output: n-byte root value node[0]
-def xmss_pk_from_sig(idx, sig_xmss, m, public_seed, adrs):
+    expected_length = len_0 + h_prime
+    if len(sig_xmss) != expected_length:
+        print(f"xmss_pk_from_sig: sig_xmss length = {len(sig_xmss)}, expected = {expected_length}")
+        return None
+
     adrs.set_type(ADRS.WOTS_HASH)
     adrs.set_key_pair_address(idx)
-    sig = sig_wots_from_sig_xmss(sig_xmss)
-    auth = auth_from_sig_xmss(sig_xmss)
+    sig = sig_wots_from_sig_xmss(sig_xmss, params=params)
+    auth = auth_from_sig_xmss(sig_xmss, params=params)
 
-    node_0 = wots_pk_from_sig(sig, m, public_seed, adrs.copy())
+    if len(auth) != h_prime:
+        print(f"xmss_pk_from_sig: auth length = {len(auth)}, expected = {h_prime}")
+        return None
+
+    node_0 = wots_pk_from_sig(sig, m, public_seed, adrs.copy(), params=params)
     node_1 = 0
 
     adrs.set_type(ADRS.TREE)
@@ -83,7 +116,7 @@ def xmss_pk_from_sig(idx, sig_xmss, m, public_seed, adrs):
             adrs.set_tree_index(adrs.get_tree_index() // 2)
             node_1 = hash(public_seed, adrs.copy(), node_0 + auth[i], n)
         else:
-            adrs.set_tree_index( (adrs.get_tree_index() - 1) // 2)
+            adrs.set_tree_index((adrs.get_tree_index() - 1) // 2)
             node_1 = hash(public_seed, adrs.copy(), auth[i] + node_0, n)
 
         node_0 = node_1
