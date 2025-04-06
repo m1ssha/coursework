@@ -11,13 +11,11 @@ class SphincsGUIHashAll:
         self.root.title("SPHINCS+ Hash & Sign Tool")
         self.root.geometry("600x400")
 
-        # Переменные
         self.sk = None
         self.pk = None
         self.signature = None
         self.file_path = None
 
-        # Интерфейс
         self.create_widgets()
 
     def create_widgets(self):
@@ -107,7 +105,7 @@ class SphincsGUIHashAll:
             self.update_result(f"Keys saved to {sk_file} and {pk_file}")
 
     def load_public_key(self):
-        """Загрузка только публичного ключа."""
+        """Загрузка публичного ключа."""
         pk_file = filedialog.askopenfilename(title="Load Public Key", filetypes=[("Key files", "*.pk")])
         if pk_file:
             with open(pk_file, 'rb') as f:

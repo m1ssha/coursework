@@ -1,8 +1,5 @@
-import os
 from src.sphincs import spx_keygen, spx_sign, spx_verify
-import src.parameters  # Импортируем модуль, чтобы подтянуть n, w, h, d, k, a, RANDOMIZE
 
-# Генерация ключей
 sk, pk = spx_keygen()
 
 # Тестовое сообщение
