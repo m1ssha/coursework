@@ -1,7 +1,3 @@
-"""
-Hypertree function based on XMSS Subs-Trees
-"""
-
 from src.parameters import *
 from src.hashes import *
 from src.ADRS import *
@@ -23,8 +19,8 @@ def ht_sign(m, secret_seed, public_seed, idx_tree, idx_leaf, params=None):
         params = get_parameters()
     d = params["d"]
     h = params["h"]
-    h_prime = h // d
     n = params["n"]
+    h_prime = h // d
     w = params["w"]
     len_1 = math.ceil(8 * n / math.log(w, 2))
     len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
@@ -51,10 +47,11 @@ def ht_sign(m, secret_seed, public_seed, idx_tree, idx_leaf, params=None):
         if j < d - 1:
             root = xmss_pk_from_sig(idx_leaf, sig_tmp, root, public_seed, adrs.copy(), params=params)
 
-    expected_length = d * (h_prime + len_0)
-    print(f"ht_sign: sig_ht length = {len(sig_ht)}, expected = {expected_length}")
-    if len(sig_ht) != expected_length:
-        raise ValueError(f"ht_sign: Invalid sig_ht length: {len(sig_ht)} != {expected_length}")
+    expected_length = d * (h_prime + len_0) * n  # Исправлено: длина в байтах
+    total_length = sum(len(x) for x in sig_ht)   # Подсчет байтов
+    print(f"ht_sign: sig_ht length = {total_length}, expected = {expected_length}")
+    if total_length != expected_length:
+        raise ValueError(f"ht_sign: Invalid sig_ht length: {total_length} != {expected_length}")
     return sig_ht
 
 def ht_verify(m, sig_ht, public_seed, idx_tree, idx_leaf, public_key_ht, params=None):
@@ -62,8 +59,8 @@ def ht_verify(m, sig_ht, public_seed, idx_tree, idx_leaf, public_key_ht, params=
         params = get_parameters()
     d = params["d"]
     h = params["h"]
-    h_prime = h // d
     n = params["n"]
+    h_prime = h // d
     w = params["w"]
     len_1 = math.ceil(8 * n / math.log(w, 2))
     len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
@@ -71,9 +68,10 @@ def ht_verify(m, sig_ht, public_seed, idx_tree, idx_leaf, public_key_ht, params=
 
     adrs = ADRS()
 
-    sigs_xmss = sigs_xmss_from_sig_ht(sig_ht, params=params)
-    expected_length = d * (h_prime + len_0)
-    print(f"ht_verify: sig_ht length = {len(sig_ht)}, expected = {expected_length}")
+    sigs_xmss = sigs_xmss_from_sig_ht(sig_ht, params=params)  # Предполагается внешняя функция
+    expected_length = d * (h_prime + len_0) * n  # Исправлено: длина в байтах
+    total_length = sum(len(x) for x in sig_ht)   # Подсчет байтов
+    print(f"ht_verify: sig_ht length = {total_length}, expected = {expected_length}")
     print(f"ht_verify: sigs_xmss length = {len(sigs_xmss)}, expected = {d}")
     if len(sigs_xmss) != d:
         print(f"ht_verify: Invalid sigs_xmss length: {len(sigs_xmss)} != {d}")

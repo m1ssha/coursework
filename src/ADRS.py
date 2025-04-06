@@ -4,6 +4,7 @@ class ADRS:
     TREE = 2
     FORS_TREE = 3
     FORS_ROOTS = 4
+    WOTS_PRF = 5
 
     def __init__(self):
         self.layer = 0

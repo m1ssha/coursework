@@ -72,6 +72,7 @@ def fors_sign(m, secret_seed, public_seed, adrs, params=None):
     k = params["k"]
     a = params["a"]
     t = 2 ** a
+    n = params["n"]  # Добавлено для проверки длины
 
     m_int = int.from_bytes(m, 'big')
     sig_fors = []
@@ -94,9 +95,10 @@ def fors_sign(m, secret_seed, public_seed, adrs, params=None):
 
         sig_fors += auth
 
-    expected_length = k * (a + 1)
-    if len(sig_fors) != expected_length:
-        print(f"fors_sign: sig_fors length = {len(sig_fors)}, expected = {expected_length}")
+    expected_length = k * (a + 1) * n  # Исправлено: длина в байтах
+    total_length = sum(len(x) for x in sig_fors)  # Подсчет байтов
+    if total_length != expected_length:
+        print(f"fors_sign: sig_fors length = {total_length}, expected = {expected_length}")
     return sig_fors
 
 def fors_pk_from_sig(sig_fors, m, public_seed, adrs: ADRS, params=None):
@@ -107,9 +109,10 @@ def fors_pk_from_sig(sig_fors, m, public_seed, adrs: ADRS, params=None):
     t = 2 ** a
     n = params["n"]
 
-    expected_length = k * (a + 1)
-    if len(sig_fors) != expected_length:
-        print(f"fors_pk_from_sig: sig_fors length = {len(sig_fors)}, expected = {expected_length}")
+    expected_length = k * (a + 1) * n  # Исправлено: длина в байтах
+    total_length = sum(len(x) for x in sig_fors)  # Подсчет байтов
+    if total_length != expected_length:
+        print(f"fors_pk_from_sig: sig_fors length = {total_length}, expected = {expected_length}")
         return None
 
     m_int = int.from_bytes(m, 'big')

@@ -73,9 +73,10 @@ def xmss_sign(m, secret_seed, idx, public_seed, adrs, params=None):
     sig = wots_sign(m, secret_seed, public_seed, adrs.copy(), params=params)
     sig_xmss = sig + auth
     
-    expected_length = len_0 + h_prime
-    if len(sig_xmss) != expected_length:
-        print(f"xmss_sign: sig_xmss length = {len(sig_xmss)}, expected = {expected_length}")
+    expected_length = (len_0 + h_prime) * n 
+    total_length = sum(len(x) for x in sig_xmss) 
+    if total_length != expected_length:
+        print(f"xmss_sign: sig_xmss length = {total_length}, expected = {expected_length}")
     return sig_xmss
 
 def xmss_pk_from_sig(idx, sig_xmss, m, public_seed, adrs, params=None):
@@ -90,14 +91,15 @@ def xmss_pk_from_sig(idx, sig_xmss, m, public_seed, adrs, params=None):
     len_2 = math.floor(math.log(len_1 * (w - 1), 2) / math.log(w, 2)) + 1
     len_0 = len_1 + len_2
 
-    expected_length = len_0 + h_prime
-    if len(sig_xmss) != expected_length:
-        print(f"xmss_pk_from_sig: sig_xmss length = {len(sig_xmss)}, expected = {expected_length}")
+    expected_length = (len_0 + h_prime) * n
+    total_length = sum(len(x) for x in sig_xmss)
+    if total_length != expected_length:
+        print(f"xmss_pk_from_sig: sig_xmss length = {total_length}, expected = {expected_length}")
         return None
 
     adrs.set_type(ADRS.WOTS_HASH)
     adrs.set_key_pair_address(idx)
-    sig = sig_wots_from_sig_xmss(sig_xmss, params=params)
+    sig = sig_wots_from_sig_xmss(sig_xmss, params=params)  
     auth = auth_from_sig_xmss(sig_xmss, params=params)
 
     if len(auth) != h_prime:
