@@ -1,11 +1,24 @@
 import time
+import os
 from tabulate import tabulate
 from openpyxl import Workbook
 from src.sphincs import spx_keygen, spx_sign, spx_verify
 from src.parameters import get_parameters
 
-def measure_times(instance, message=b"Test message for SPHINCS+"):
+SIZE_FILE = 1024 * 1024 * 1
+
+def generate_test_file(size=SIZE_FILE):
+    file_path = "test_file.bin"
+    with open(file_path, "wb") as f:
+        f.write(os.urandom(size))
+    with open(file_path, "rb") as f:
+        data = f.read()
+    os.remove(file_path)
+    return data
+
+def measure_times(instance):
     params = get_parameters(instance)
+    message = generate_test_file()
     
     start_time = time.perf_counter()
     sk, pk = spx_keygen(params=params)
@@ -34,7 +47,7 @@ def run_tests():
     instances = ["128s", "128f", "192s", "192f", "256s", "256f"]
     results = []
 
-    print("Запуск тестов SPHINCS+...\n")
+    print(f"Запуск тестов SPHINCS+ с файлом {SIZE_FILE // (1024 * 1024)} МБ...\n")
     for instance in instances:
         print(f"Тестирование {instance}...")
         result = measure_times(instance)
@@ -60,7 +73,6 @@ def run_tests():
     ws.title = "SPHINCS+ Test Results"
 
     ws.append(headers)
-
     for r in results:
         ws.append([
             r["instance"],
