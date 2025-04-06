@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import os
 import pickle
 import hashlib
@@ -9,8 +9,9 @@ from src.parameters import get_parameters
 class GUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("SPHINCS+ GUI")
-        self.root.geometry("700x600")
+        self.root.title("Инструмент SPHINCS+")
+        self.root.geometry("800x600")
+        self.root.resizable(False, False)  # Фиксированный размер окна
 
         self.sk = None
         self.pk = None
@@ -22,31 +23,58 @@ class GUI:
         self.create_widgets()
 
     def create_widgets(self):
-        tk.Label(self.root, text="Набор параметров:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        # Стиль для кнопок и виджетов
+        style = ttk.Style()
+        style.configure("TButton", font=("Helvetica", 10), padding=5)
+        style.configure("TLabel", font=("Helvetica", 10))
+        style.configure("TCombobox", font=("Helvetica", 10))
+
+        # Основной контейнер
+        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame.pack(fill="both", expand=True)
+
+        # Рамка для параметров
+        param_frame = ttk.LabelFrame(main_frame, text="Параметры", padding="5")
+        param_frame.pack(fill="x", pady=5)
+
+        ttk.Label(param_frame, text="Набор параметров:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
         instances = ["128s", "128f", "192s", "192f", "256s", "256f"]
         self.instance_var = tk.StringVar(value=self.instance)
         self.instance_var.trace("w", self.update_instance)
-        tk.OptionMenu(self.root, self.instance_var, *instances).grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        ttk.Combobox(param_frame, textvariable=self.instance_var, values=instances, state="readonly", width=10).grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
-        tk.Label(self.root, text="Ключи:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
-        tk.Button(self.root, text="Сгенерировать пару ключей", command=self.generate_keys).grid(row=1, column=1, padx=5, pady=5)
+        # Рамка для ключей
+        key_frame = ttk.LabelFrame(main_frame, text="Управление ключами", padding="5")
+        key_frame.pack(fill="x", pady=5)
 
-        tk.Label(self.root, text="Файл:").grid(row=2, column=0, padx=5, pady=5, sticky="e")
-        self.file_label = tk.Label(self.root, text="Файл не выбран", width=50, anchor="w")
-        self.file_label.grid(row=2, column=1, padx=5, pady=5)
-        tk.Button(self.root, text="Выбрать файл", command=self.select_file).grid(row=2, column=2, padx=5, pady=5)
+        ttk.Label(key_frame, text="Ключи:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        ttk.Button(key_frame, text="Сгенерировать пару ключей", command=self.generate_keys).grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        ttk.Button(key_frame, text="Сохранить ключи", command=self.save_keys).grid(row=0, column=2, padx=5, pady=5)
+        ttk.Button(key_frame, text="Загрузить ключи", command=self.load_keys).grid(row=0, column=3, padx=5, pady=5)
 
-        tk.Button(self.root, text="Подписать файл (хэш)", command=self.sign_file_hash).grid(row=3, column=1, padx=5, pady=5)
-        tk.Button(self.root, text="Проверить файл", command=self.verify_file).grid(row=4, column=1, padx=5, pady=5)
+        # Рамка для файла и подписи
+        file_frame = ttk.LabelFrame(main_frame, text="Работа с файлами и подписью", padding="5")
+        file_frame.pack(fill="x", pady=5)
 
-        tk.Button(self.root, text="Сохранить ключи", command=self.save_keys).grid(row=5, column=0, padx=5, pady=5)
-        tk.Button(self.root, text="Загрузить ключи", command=self.load_keys).grid(row=5, column=1, padx=5, pady=5)
-        tk.Button(self.root, text="Сохранить подпись", command=self.save_signature).grid(row=6, column=0, padx=5, pady=5)
-        tk.Button(self.root, text="Загрузить подпись", command=self.load_signature).grid(row=6, column=1, padx=5, pady=5)
+        ttk.Label(file_frame, text="Файл:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        self.file_label = ttk.Label(file_frame, text="Файл не выбран", width=50, anchor="w")
+        self.file_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        ttk.Button(file_frame, text="Выбрать файл", command=self.select_file).grid(row=0, column=2, padx=5, pady=5)
 
-        tk.Label(self.root, text="Результат:").grid(row=7, column=0, padx=5, pady=5, sticky="ne")
-        self.result_text = tk.Text(self.root, height=15, width=70, state='disabled')
-        self.result_text.grid(row=7, column=1, columnspan=2, padx=5, pady=5)
+        ttk.Button(file_frame, text="Подписать файл (хэш)", command=self.sign_file_hash).grid(row=1, column=1, padx=5, pady=5)
+        ttk.Button(file_frame, text="Проверить файл", command=self.verify_file).grid(row=2, column=1, padx=5, pady=5)
+        ttk.Button(file_frame, text="Сохранить подпись", command=self.save_signature).grid(row=1, column=2, padx=5, pady=5)
+        ttk.Button(file_frame, text="Загрузить подпись", command=self.load_signature).grid(row=2, column=2, padx=5, pady=5)
+
+        # Рамка для результата
+        result_frame = ttk.LabelFrame(main_frame, text="Результат", padding="5")
+        result_frame.pack(fill="both", expand=True, pady=5)
+
+        self.result_text = tk.Text(result_frame, height=15, width=70, state='disabled', font=("Courier", 10))
+        self.result_text.pack(fill="both", expand=True, padx=5, pady=5)
+        scrollbar = ttk.Scrollbar(result_frame, orient="vertical", command=self.result_text.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.result_text.config(yscrollcommand=scrollbar.set)
 
     def update_instance(self, *args):
         """Обновление выбранного набора параметров."""
